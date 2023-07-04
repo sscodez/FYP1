@@ -1,69 +1,384 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
 contract Charity {
-    struct Campaign {
-        address owner;
+    //Struct of  Beneficiary
+    struct Beneficiary {
+        string name;
+        string cnic;
+        string residentAddress;
+        uint256 bankBalance;
+        string bankName;
+        string bankAccount;
+        address payable walletAddress;
+        string authorizedEntity;
+        string status;
+        string phoneNumber;
+        uint256 lastDonationTimestamp;
+    }
+
+
+    //Struct of  Organiziation
+
+    struct Organization {
+        string name;
+        string organizationBased;
+        string authorizedEntity;
+        string status;
+        uint256 bankBalance;
+        string bankName;
+        string bankAccount;
+        string phoneNumber;
+    }
+
+    //Struct of  Donor
+
+
+    struct Donor {
+        string name;
+        string cnic;
+        string residentAddress;
+        string phoneNumber;
+        uint256 bankBalance;
+        string bankName;
+        string bankAccount;
+        string status;
+    }
+
+    // Struct of Charity Request
+    struct CharityRequest {
+        string charityType;
+        uint256 requestedMoney;
         string title;
         string description;
-        uint256 target;
-        uint256 deadline;
-        uint256 amountCollected;
-        string image;
-        address[] donators;
-        uint256[] donations;
+        address organizationWallet;
+        string status;
     }
 
-    mapping(uint256 => Campaign) public campaigns;
-
-    uint256 public numberOfCampaigns = 0;
-
-    function createCampaign(address _owner, string memory _title, string memory _description, uint256 _target, uint256 _deadline, string memory _image) public returns (uint256) {
-        Campaign storage campaign = campaigns[numberOfCampaigns];
-
-        require(campaign.deadline < block.timestamp, "The deadline should be a date in the future.");
-
-        campaign.owner = _owner;
-        campaign.title = _title;
-        campaign.description = _description;
-        campaign.target = _target;
-        campaign.deadline = _deadline;
-        campaign.amountCollected = 0;
-        campaign.image = _image;
-
-        numberOfCampaigns++;
-
-        return numberOfCampaigns - 1;
+    struct DonationRequest {
+        string charityType;
+        address wallet_address;
+        address organizationWallet; 
     }
 
-    function donateToCampaign(uint256 _id) public payable {
-        uint256 amount = msg.value;
+     struct TrackingStruct {
+       address userAddress;
+       address organizationAddress;
+       address beneficiary;
+       uint256 amount;
+       string charityType;
+    }
+    struct TransferDetails {
+        address userAddress;
+        uint256 amount;
+    }
 
-        Campaign storage campaign = campaigns[_id];
+    //Mapping
+    mapping(address => Beneficiary) public beneficiaries;
+    mapping(address => Organization) public organizations;
+    mapping(address => Donor) public donors;
+    mapping(address => CharityRequest) public charityRequests;
+    mapping(address => DonationRequest) public doantionRequests;
+    mapping(address => mapping(string => uint256)) public charityTypeAmount;  
+ 
+    
 
-        campaign.donators.push(msg.sender);
-        campaign.donations.push(amount);
+    TransferDetails[] public transferDetails;
+    string[] public authorizedBanks;
+    address public admin;
+    address[] public approvedBeneficiaries;
+    address[] public approvedDonors;
+    address[] public approvedOrganizations;
 
-        (bool sent,) = payable(campaign.owner).call{value: amount}("");
+    mapping(address => TrackingStruct[]) public TrackingTransaction;
+   
 
-        if(sent) {
-            campaign.amountCollected = campaign.amountCollected + amount;
+
+    uint256 public oneMonth = 30 days;
+
+    //Constructor
+    constructor() {
+        authorizedBanks = ["Bank A", "Bank B", "Bank C"];
+        admin = msg.sender;
+    }
+
+    // Modifier to check if the caller is the admin
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin can perform this action");
+        _;
+    }
+
+    // Add a new beneficiary
+    function addBeneficiary(
+        string memory _name,
+        string memory _cnic,
+        string memory _residentAddress,
+        uint256 _bankBalance,
+        string memory _bankName,
+        string memory _bankAccount,
+        address payable _payableAddress,
+        string memory _authorizedEntity,
+        string memory _phoneNumber
+    ) public {
+        // Validate inputs
+        require(bytes(_bankAccount).length == 21, "Bank account must be 21 digits");
+        require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
+        require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
+        require(bytes(_phoneNumber)[0] == "3", "Phone number must start with 3");
+
+        // Create a new beneficiary
+        Beneficiary memory newBeneficiary = Beneficiary(
+            _name,
+            _cnic,
+            _residentAddress,
+            _bankBalance,
+            _bankName,
+            _bankAccount,
+            _payableAddress,
+            _authorizedEntity,
+            "Waiting",
+            _phoneNumber,
+            0
+        );
+        beneficiaries[_payableAddress] = newBeneficiary;
+    }
+
+    // Add a new organization
+    function addOrganization(
+        string memory _name,
+        string memory _organizationBased,
+        string memory _authorizedEntity,
+        uint256 _bankBalance,
+        string memory _bankName,
+        string memory _bankAccount,
+        string memory _phoneNumber 
+
+    ) public {
+        // Validate organization's location
+        require(
+            keccak256(bytes(_organizationBased)) == keccak256(bytes("karachi")),
+            "Organization must be based in Karachi"
+        );
+
+        // Create a new organization
+        Organization memory newOrganization = Organization(
+            _name,
+            _organizationBased,
+            _authorizedEntity,
+            "Waiting",
+            _bankBalance,
+            _bankName,
+            _bankAccount,
+            _phoneNumber
+            
+        );
+        organizations[msg.sender] = newOrganization;
+    }
+
+    // Add a new donor
+    function addDonor(
+        string memory _name,
+        string memory _cnic,
+        string memory _residentAddress,
+        string memory _phoneNumber,
+        uint256 _bankBalance,
+        string memory _bankName,
+        string memory _bankAccount
+    ) public {
+        // Validate inputs
+        require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
+        require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
+        require(bytes(_phoneNumber)[0] == "3", "Phone number must start with 3");
+
+        // Create a new donor
+        Donor memory newDonor = Donor(
+            _name,
+            _cnic,
+            _residentAddress,
+            _phoneNumber,
+            _bankBalance,
+            _bankName,
+            _bankAccount,
+            "Waiting"
+        );
+        donors[msg.sender] = newDonor;
+    }
+
+    // Check if a bank is authorized
+    function isBankAuthorized(string memory _bankName) internal view returns (bool) {
+        for (uint256 i = 0; i < authorizedBanks.length; i++) {
+            if (keccak256(bytes(authorizedBanks[i])) == keccak256(bytes(_bankName))) {
+                return true;
+            }
         }
+        return false;
     }
 
-    function getDonators(uint256 _id) view public returns (address[] memory, uint256[] memory) {
-        return (campaigns[_id].donators, campaigns[_id].donations);
+    // Create a new charity request
+    function createCharity(string memory _charityType,uint256 _requestedMoney,string memory _title,string memory _description,address _organizationWallet) public {
+        Beneficiary storage beneficiary = beneficiaries[msg.sender];
+        require(beneficiary.walletAddress != address(0), "Sender must be a beneficiary");
+        require(beneficiary.bankBalance >= _requestedMoney, "Insufficient funds");
+        require(
+            beneficiary.lastDonationTimestamp + oneMonth <= block.timestamp,
+            "Must wait at least one month since last donation"
+        );
+
+        // Adjust the requested money if the bank balance is less
+        uint256 actualRequestedMoney = beneficiary.bankBalance - _requestedMoney ;
+     
+
+        string memory bankName = beneficiary.bankName;
+        require(isBankAuthorized(bankName), "Bank is not authorized");
+
+        // Create a new charity request
+        charityRequests[msg.sender] = CharityRequest(
+            _charityType,
+            actualRequestedMoney,
+            _title,
+            _description,
+            _organizationWallet,
+            "Waiting"
+        );
+
+        beneficiary.lastDonationTimestamp = block.timestamp;
     }
 
-    function getCampaigns() public view returns (Campaign[] memory) {
-        Campaign[] memory allCampaigns = new Campaign[](numberOfCampaigns);
+    // Approve the status of a beneficiary
+    function approveBeneficiary(address _address) public onlyAdmin {
+    
+        Beneficiary storage beneficiary = beneficiaries[_address];
+        require(keccak256(bytes(beneficiary.status)) == keccak256(bytes("Waiting")),"Beneficiary status is not waiting");
+        beneficiary.status = "Approved";
+        approvedBeneficiaries.push(_address);
 
-        for(uint i = 0; i < numberOfCampaigns; i++) {
-            Campaign storage item = campaigns[i];
+    }
 
-            allCampaigns[i] = item;
+    // Approve the status of a donor
+    function approveDonor(address _address) public onlyAdmin {
+        Donor storage donor = donors[_address];
+        require(keccak256(bytes(donor.status)) == keccak256(bytes("Waiting")),"Donor status is not waiting");
+        donor.status = "Approved";
+        approvedDonors.push(_address);
+    }
+
+    // Approve the status of an organization
+    function approveOrganization(address _address) public onlyAdmin {
+        Organization storage organization = organizations[_address];
+        require(keccak256(bytes(organization.status)) == keccak256(bytes("Waiting")),"Organization status is not waiting");
+        organization.status = "Approved";
+        approvedOrganizations.push(_address);
+    }
+
+    // Transfer funds from donor to organization
+    function transferFunds(address _donorAddress, address _organizationAddress, uint256 _amount,string memory _charityType) internal {
+        Donor storage donor = donors[_donorAddress];
+        Organization storage organization = organizations[_organizationAddress];
+        require(
+            keccak256(bytes(donor.status)) == keccak256(bytes("Approved")),
+            "The donor must be approved"
+        );
+        require(
+            keccak256(bytes(organization.status)) == keccak256(bytes("Approved")),
+            "The organization must be approved"
+        );
+
+        require(keccak256(bytes(_charityType)) == keccak256(bytes("Education")) ||keccak256(bytes(_charityType)) == keccak256(bytes("Health")) ||keccak256(bytes(_charityType)) == keccak256(bytes("Food")), "Transfer amount must be greater than zero");
+        require(_amount > 0, "Transfer amount must be greater than zero");
+        require(_amount <= donor.bankBalance / 2, "Transfer amount exceeds donor's limit");
+        require(donor.bankBalance >= _amount, "Insufficient funds in the donor's account");
+
+        donor.bankBalance -= _amount;
+        organization.bankBalance += _amount;
+        charityTypeAmount[_organizationAddress][_charityType] += _amount;
+
+          DonationRequest memory newDonationRequest = DonationRequest(
+           _charityType,
+           _donorAddress,
+           _organizationAddress
+           
+        );
+
+        doantionRequests[_donorAddress]=newDonationRequest;
+        
+    }
+
+    function addTransferDetails(address userAddress, uint256 amount) public {
+        transferDetails.push(TransferDetails(userAddress, amount));
+    }
+
+    // Transfer funds from organization to beneficiary
+    function transferFundsToBeneficiary(address _organizationAddress,address _beneficiaryAddress,uint256 _amount,string memory charityType) public {
+
+
+        Organization storage organization = organizations[_organizationAddress];
+        Beneficiary storage beneficiary = beneficiaries[_beneficiaryAddress];
+        CharityRequest storage charityRequest = charityRequests[_beneficiaryAddress];
+        require(
+            keccak256(bytes(organization.status)) == keccak256(bytes("Approved")),
+            "The organization must be approved"
+        );
+        require(
+            keccak256(bytes(beneficiary.status)) == keccak256(bytes("Approved")),
+            "The beneficiary must be approved"
+        );
+        require(
+            keccak256(bytes(charityRequest.status)) == keccak256(bytes("Approved")),
+            "The charity request must be approved"
+        );
+        require(
+            keccak256(bytes(charityRequest.charityType)) == keccak256(bytes("Education")) || keccak256(bytes(charityRequest.charityType)) == keccak256(bytes("Food")) ||keccak256(bytes(charityRequest.charityType)) == keccak256(bytes("Health")),
+            "Invalid Charity Type"
+        );
+        require(_amount > 0, "Transfer amount must be greater than zero");
+        require(
+            charityRequest.requestedMoney >= _amount,
+            "Transfer amount exceeds the requested money for the charity"
+        );
+        require(
+            organization.bankBalance >= _amount,
+            "Insufficient funds in the organization's account"
+        );
+
+
+        organization.bankBalance -= _amount;
+        beneficiary.bankBalance += _amount;
+        charityRequest.status = "Transferred";
+        charityTypeAmount[_organizationAddress][charityRequest.charityType] -= _amount;
+
+        uint256 remainingAmount = _amount;
+
+        for (uint256 i = 0; i < transferDetails.length; i++) {
+            address addr = transferDetails[i].userAddress;
+            uint256 amount = transferDetails[i].amount;
+            if(transferDetails[i].amount !=0)
+            {
+
+             if (remainingAmount == 0) {
+                break;
+            }
+            else if (transferDetails[i].amount >= remainingAmount) {
+                 transferDetails[i].amount -= remainingAmount;
+                 remainingAmount=0;
+                TransactionTracking(transferDetails[i].userAddress,_organizationAddress,_beneficiaryAddress,remainingAmount, charityType);
+
+            }
+            else if (transferDetails[i].amount < remainingAmount) {
+                 remainingAmount-=transferDetails[i].amount;
+                 transferDetails[i].amount=0;
+                 TransactionTracking(transferDetails[i].userAddress,_organizationAddress,_beneficiaryAddress,transferDetails[i].amount, charityType);
+
+            }
+
+            }
         }
-
-        return allCampaigns;
+        
     }
+
+    function TransactionTracking(address userAddress,address organizationAddress, address donne,uint256 amount, string memory charityType) private {
+        TrackingTransaction[userAddress].push(TrackingStruct(userAddress,organizationAddress,donne,amount, charityType));
+    }
+
+
+    
+
 }
