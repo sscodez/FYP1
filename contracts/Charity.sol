@@ -9,8 +9,8 @@ contract Charity {
         uint256 bankBalance;
         string bankName;
         string bankAccount;
-        address payable walletAddress;
         string authorizedEntity;
+        address walletAddress;
         string status;
         string phoneNumber;
         uint256 lastDonationTimestamp;
@@ -24,6 +24,7 @@ contract Charity {
         string organizationBased;
         string authorizedEntity;
         string status;
+        address walletAddress;
         uint256 bankBalance;
         string bankName;
         string bankAccount;
@@ -97,7 +98,7 @@ contract Charity {
 
     //Constructor
     constructor() {
-        authorizedBanks = ["Bank A", "Bank B", "Bank C"];
+        authorizedBanks = ["BAHL", "HBL", "MB"];
         admin = msg.sender;
     }
 
@@ -115,7 +116,6 @@ contract Charity {
         uint256 _bankBalance,
         string memory _bankName,
         string memory _bankAccount,
-        address payable _payableAddress,
         string memory _authorizedEntity,
         string memory _phoneNumber
     ) public {
@@ -123,7 +123,7 @@ contract Charity {
         require(bytes(_bankAccount).length == 21, "Bank account must be 21 digits");
         require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
         require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
-        require(bytes(_phoneNumber)[0] == "3", "Phone number must start with 3");
+        require(bytes(_phoneNumber)[0] == "0" && bytes(_phoneNumber)[1] == "3" , "Phone number must start with 3");
 
         // Create a new beneficiary
         Beneficiary memory newBeneficiary = Beneficiary(
@@ -133,13 +133,13 @@ contract Charity {
             _bankBalance,
             _bankName,
             _bankAccount,
-            _payableAddress,
             _authorizedEntity,
+            msg.sender,
             "Waiting",
             _phoneNumber,
             0
         );
-        beneficiaries[_payableAddress] = newBeneficiary;
+        beneficiaries[msg.sender] = newBeneficiary;
     }
 
     // Add a new organization
@@ -147,6 +147,7 @@ contract Charity {
         string memory _name,
         string memory _organizationBased,
         string memory _authorizedEntity,
+        address _payableAddress, 
         uint256 _bankBalance,
         string memory _bankName,
         string memory _bankAccount,
@@ -155,7 +156,7 @@ contract Charity {
     ) public {
         // Validate organization's location
         require(
-            keccak256(bytes(_organizationBased)) == keccak256(bytes("karachi")),
+            keccak256(bytes(_organizationBased)) == keccak256(bytes("Karachi")),
             "Organization must be based in Karachi"
         );
 
@@ -165,6 +166,7 @@ contract Charity {
             _organizationBased,
             _authorizedEntity,
             "Waiting",
+            msg.sender,
             _bankBalance,
             _bankName,
             _bankAccount,
@@ -185,9 +187,12 @@ contract Charity {
         string memory _bankAccount
     ) public {
         // Validate inputs
+        
+        require(bytes(_bankAccount).length == 21, "Bank account must be 21 digits");
         require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
         require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
-        require(bytes(_phoneNumber)[0] == "3", "Phone number must start with 3");
+        require(bytes(_phoneNumber)[0] == "0" && bytes(_phoneNumber)[1] == "3" , "Phone number must start with 3");
+
 
         // Create a new donor
         Donor memory newDonor = Donor(
@@ -214,7 +219,7 @@ contract Charity {
     }
 
     // Create a new charity request
-    function createCharity(string memory _charityType,uint256 _requestedMoney,string memory _title,string memory _description,address _organizationWallet) public {
+    function createCharity(string memory _charityType,uint256 _requestedMoney,string memory _title,string memory _description,address _organizationWallet) public payable {
         Beneficiary storage beneficiary = beneficiaries[msg.sender];
         require(beneficiary.walletAddress != address(0), "Sender must be a beneficiary");
         require(beneficiary.bankBalance >= _requestedMoney, "Insufficient funds");
@@ -244,7 +249,7 @@ contract Charity {
     }
 
     // Approve the status of a beneficiary
-    function approveBeneficiary(address _address) public onlyAdmin {
+    function approveBeneficiary(address _address) public onlyAdmin payable {
     
         Beneficiary storage beneficiary = beneficiaries[_address];
         require(keccak256(bytes(beneficiary.status)) == keccak256(bytes("Waiting")),"Beneficiary status is not waiting");
@@ -254,7 +259,7 @@ contract Charity {
     }
 
     // Approve the status of a donor
-    function approveDonor(address _address) public onlyAdmin {
+    function approveDonor(address _address) public onlyAdmin payable {
         Donor storage donor = donors[_address];
         require(keccak256(bytes(donor.status)) == keccak256(bytes("Waiting")),"Donor status is not waiting");
         donor.status = "Approved";
@@ -262,7 +267,7 @@ contract Charity {
     }
 
     // Approve the status of an organization
-    function approveOrganization(address _address) public onlyAdmin {
+    function approveOrganization(address _address) public onlyAdmin payable {
         Organization storage organization = organizations[_address];
         require(keccak256(bytes(organization.status)) == keccak256(bytes("Waiting")),"Organization status is not waiting");
         organization.status = "Approved";
@@ -270,7 +275,7 @@ contract Charity {
     }
 
     // Transfer funds from donor to organization
-    function transferFunds(address _donorAddress, address _organizationAddress, uint256 _amount,string memory _charityType) internal {
+    function transferFunds(address _donorAddress,  uint256 _amount,string memory _charityType) public payable {
         Donor storage donor = donors[_donorAddress];
         Organization storage organization = organizations[_organizationAddress];
         require(
@@ -302,17 +307,21 @@ contract Charity {
         
     }
 
-    function addTransferDetails(address userAddress, uint256 amount) public {
+    function addTransferDetails(address userAddress, uint256 amount) public payable {
         transferDetails.push(TransferDetails(userAddress, amount));
     }
 
-    // Transfer funds from organization to beneficiary
-    function transferFundsToBeneficiary(address _organizationAddress,address _beneficiaryAddress,uint256 _amount,string memory charityType) public {
+    // // Transfer funds from organization to beneficiary
+    function transferFundsToBeneficiary(address _beneficiaryAddress,uint256 _amount) public {
 
-
-        Organization storage organization = organizations[_organizationAddress];
+        Organization storage organization = organizations[msg.sender];
         Beneficiary storage beneficiary = beneficiaries[_beneficiaryAddress];
         CharityRequest storage charityRequest = charityRequests[_beneficiaryAddress];
+        require(organization.wallet_address != msg.sender, "Invalid organization");
+        require(
+            keccak256(bytes(organization.status)) == keccak256(bytes("Approved")),
+            "The organization must be approved"
+        );
         require(
             keccak256(bytes(organization.status)) == keccak256(bytes("Approved")),
             "The organization must be approved"
@@ -343,34 +352,34 @@ contract Charity {
         organization.bankBalance -= _amount;
         beneficiary.bankBalance += _amount;
         charityRequest.status = "Transferred";
-        charityTypeAmount[_organizationAddress][charityRequest.charityType] -= _amount;
+        charityTypeAmount[msg.sender][charityRequest.charityType] -= _amount;
 
-        uint256 remainingAmount = _amount;
+        // uint256 remainingAmount = _amount;
 
-        for (uint256 i = 0; i < transferDetails.length; i++) {
-            address addr = transferDetails[i].userAddress;
-            uint256 amount = transferDetails[i].amount;
-            if(transferDetails[i].amount !=0)
-            {
+        // for (uint256 i = 0; i < transferDetails.length; i++) {
+        //     address addr = transferDetails[i].userAddress;
+        //     uint256 amount = transferDetails[i].amount;
+        //     if(transferDetails[i].amount !=0)
+        //     {
 
-             if (remainingAmount == 0) {
-                break;
-            }
-            else if (transferDetails[i].amount >= remainingAmount) {
-                 transferDetails[i].amount -= remainingAmount;
-                 remainingAmount=0;
-                TransactionTracking(transferDetails[i].userAddress,_organizationAddress,_beneficiaryAddress,remainingAmount, charityType);
+        //      if (remainingAmount == 0) {
+        //         break;
+        //     }
+        //     else if (transferDetails[i].amount >= remainingAmount) {
+        //          transferDetails[i].amount -= remainingAmount;
+        //          remainingAmount=0;
+        //         TransactionTracking(transferDetails[i].userAddress,_organizationAddress,_beneficiaryAddress,remainingAmount, charityType);
 
-            }
-            else if (transferDetails[i].amount < remainingAmount) {
-                 remainingAmount-=transferDetails[i].amount;
-                 transferDetails[i].amount=0;
-                 TransactionTracking(transferDetails[i].userAddress,_organizationAddress,_beneficiaryAddress,transferDetails[i].amount, charityType);
+        //     }
+        //     else if (transferDetails[i].amount < remainingAmount) {
+        //          remainingAmount-=transferDetails[i].amount;
+        //          transferDetails[i].amount=0;
+        //          TransactionTracking(transferDetails[i].userAddress,_organizationAddress,_beneficiaryAddress,transferDetails[i].amount, charityType);
 
-            }
+        //     }
 
-            }
-        }
+        //     }
+        // }
         
     }
 
