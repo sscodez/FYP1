@@ -275,8 +275,8 @@ contract Charity {
     }
 
     // Transfer funds from donor to organization
-    function transferFunds(address _donorAddress,  uint256 _amount,string memory _charityType) public payable {
-        Donor storage donor = donors[_donorAddress];
+    function transferFunds(address  _organizationAddress, uint256 _amount,string memory _charityType) public payable {
+        Donor storage donor = donors[msg.sender];
         Organization storage organization = organizations[_organizationAddress];
         require(
             keccak256(bytes(donor.status)) == keccak256(bytes("Approved")),
@@ -298,12 +298,12 @@ contract Charity {
 
           DonationRequest memory newDonationRequest = DonationRequest(
            _charityType,
-           _donorAddress,
+           msg.sender,
            _organizationAddress
            
         );
 
-        doantionRequests[_donorAddress]=newDonationRequest;
+        doantionRequests[msg.sender]=newDonationRequest;
         
     }
 
@@ -317,7 +317,7 @@ contract Charity {
         Organization storage organization = organizations[msg.sender];
         Beneficiary storage beneficiary = beneficiaries[_beneficiaryAddress];
         CharityRequest storage charityRequest = charityRequests[_beneficiaryAddress];
-        require(organization.wallet_address != msg.sender, "Invalid organization");
+        require(organization.walletAddress != msg.sender, "Invalid organization");
         require(
             keccak256(bytes(organization.status)) == keccak256(bytes("Approved")),
             "The organization must be approved"
