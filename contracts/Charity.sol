@@ -1,6 +1,7 @@
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.18;
 
-contract Charity {
+contract MASRAC {
     //Struct of  Beneficiary
     struct Beneficiary {
         string name;
@@ -91,8 +92,9 @@ contract Charity {
     address[] public approvedOrganizations;
 
     mapping(address => TrackingStruct[]) public TrackingTransaction;
-   
-
+   address[] public donorsList;
+   address[] public beneficiariesList;
+    address[] public organizationsList;
 
     uint256 public oneMonth = 30 days;
 
@@ -120,10 +122,10 @@ contract Charity {
         string memory _phoneNumber
     ) public {
         // Validate inputs
-        require(bytes(_bankAccount).length == 21, "Bank account must be 21 digits");
-        require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
-        require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
-        require(bytes(_phoneNumber)[0] == "0" && bytes(_phoneNumber)[1] == "3" , "Phone number must start with 3");
+        // require(bytes(_bankAccount).length == 21, "Bank account must be 21 digits");
+        // require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
+        // require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
+        // require(bytes(_phoneNumber)[0] == "0" && bytes(_phoneNumber)[1] == "3" , "Phone number must start with 3");
 
         // Create a new beneficiary
         Beneficiary memory newBeneficiary = Beneficiary(
@@ -140,14 +142,14 @@ contract Charity {
             0
         );
         beneficiaries[msg.sender] = newBeneficiary;
+        beneficiariesList.push(msg.sender);
     }
 
     // Add a new organization
     function addOrganization(
         string memory _name,
         string memory _organizationBased,
-        string memory _authorizedEntity,
-        address _payableAddress, 
+        string memory _authorizedEntity, 
         uint256 _bankBalance,
         string memory _bankName,
         string memory _bankAccount,
@@ -174,6 +176,7 @@ contract Charity {
             
         );
         organizations[msg.sender] = newOrganization;
+        organizationsList.push(msg.sender);
     }
 
     // Add a new donor
@@ -188,10 +191,10 @@ contract Charity {
     ) public {
         // Validate inputs
         
-        require(bytes(_bankAccount).length == 21, "Bank account must be 21 digits");
-        require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
-        require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
-        require(bytes(_phoneNumber)[0] == "0" && bytes(_phoneNumber)[1] == "3" , "Phone number must start with 3");
+        // require(bytes(_bankAccount).length == 21, "Bank account must be 21 digits");
+        // require(bytes(_cnic).length == 13, "CNIC must be 13 digits");
+        // require(bytes(_phoneNumber).length == 11, "Phone number must be 11 digits");
+        // require(bytes(_phoneNumber)[0] == "0" && bytes(_phoneNumber)[1] == "3" , "Phone number must start with 3");
 
 
         // Create a new donor
@@ -206,6 +209,7 @@ contract Charity {
             "Waiting"
         );
         donors[msg.sender] = newDonor;
+        donorsList.push(msg.sender);
     }
 
     // Check if a bank is authorized
@@ -322,10 +326,7 @@ contract Charity {
             keccak256(bytes(organization.status)) == keccak256(bytes("Approved")),
             "The organization must be approved"
         );
-        require(
-            keccak256(bytes(organization.status)) == keccak256(bytes("Approved")),
-            "The organization must be approved"
-        );
+      
         require(
             keccak256(bytes(beneficiary.status)) == keccak256(bytes("Approved")),
             "The beneficiary must be approved"
@@ -383,11 +384,38 @@ contract Charity {
         
     }
 
-    function TransactionTracking(address userAddress,address organizationAddress, address donne,uint256 amount, string memory charityType) private {
-        TrackingTransaction[userAddress].push(TrackingStruct(userAddress,organizationAddress,donne,amount, charityType));
-    }
+    // function TransactionTracking(address userAddress,address organizationAddress, address donne,uint256 amount, string memory charityType) private {
+    //     TrackingTransaction[userAddress].push(TrackingStruct(userAddress,organizationAddress,donne,amount, charityType));
+    // }
 
+//     function getAllDonors() public view returns (Donor[] memory) {
+//     Donor[] memory allDonors = new Donor[](donorsList.length);
 
-    
+//     for (uint256 i = 0; i < donorsList.length; i++) {
+//         allDonors[i] = donors[donorsList[i]];
+//     }
+
+//     return allDonors;
+// }
+
+//     function getAllBeneficiary() public view returns (Beneficiary[] memory) {
+//     Beneficiary[] memory allBeneficiary = new Beneficiary[](beneficiariesList.length);
+
+//     for (uint256 i = 0; i < beneficiariesList.length; i++) {
+//         allBeneficiary[i] = beneficiaries[beneficiariesList[i]];
+//     }
+
+//     return allBeneficiary;
+// }   
+
+//  function getAllOrganization() public view returns (Organization[] memory) {
+//     Organization[] memory allOrganization = new Organization[](organizationsList.length);
+
+//     for (uint256 i = 0; i < organizationsList.length; i++) {
+//         allOrganization[i] = organizations[organizationsList[i]];
+//     }
+
+//     return allOrganization;
+// }   
 
 }
